@@ -5,8 +5,9 @@ shinyUI(fluidPage(
 
   sidebarLayout(
     sidebarPanel(
-        dateInput('startDate', label = 'Start Date: yyyy-mm-dd', value = '2012-07-01'),
-        dateInput('endDate', label = 'End Date: yyyy-mm-dd', value = '2012-08-01')
+        dateRangeInput('dateRange', label='Date Range: ', start = '2012-07-01', end = '2012-07-03'),
+        textInput("apiKey", "Forecast.io API Key:", ""),
+        submitButton("Get Data")
     ),
     mainPanel(
       plotOutput("temperaturePlot")

@@ -1,9 +1,10 @@
 library(shiny)
+library(Rforecastio)
 library(dplyr)
 library(ggplot2)
 library(scales)
 
-getWeatherPlotData <- function(weatherData, startDate, endDate, timezone) {
+getStoredWeatherPlotData <- function(weatherData, startDate, endDate, timezone) {
     startTime <- as.POSIXlt(as.Date(startDate), tz=timezone)
     endTime <- as.POSIXlt(as.Date(endDate), tz=timezone)
     flags <- weatherData$time >= startTime & weatherData$time < endTime
@@ -15,21 +16,49 @@ loadWeatherData <- function() {
     weatherData
 }
 
+getForecastIoData <- function(apiKey, lat, long, qDate, timezone) {
+    timestamp <- as.numeric(as.POSIXct(as.character(qDate), tz=timezone))                
+    print(sprintf('Getting data for %s, timestamp: %d', qDate, timestamp))
+    d <- fio.forecast(apiKey, lat, long, timestamp, sslverifypeer=FALSE)
+}
+
+getForecastIoWeatherPlotData <- function(apiKey, startDate, endDate, lat, long, timezone) {
+    qDate <- as.Date(startDate)
+    endDate <- as.Date(endDate)
+    result <- data.frame()
+    while (qDate < endDate) {
+        d <- getForecastIoData(apiKey, lat, long, qDate, timezone)
+        z <- d$hourly.df %>% select(time, summary, temperature, humidity, 
+                                    precipIntensity, precipProbability, 
+                                    windSpeed, cloudCover, visibility)
+        if (nrow(result) > 0) {
+            result <- rbind(result, z)
+        } else {
+            result <- z
+        }
+        qDate <- qDate + 1
+    }
+    result
+}
+
 shinyServer(function(input, output) {
-    
-    weatherData <- loadWeatherData()
-
     output$temperaturePlot <- renderPlot({
-        df <- getWeatherPlotData(weatherData, input$startDate, input$endDate, 'America/New_York')
-        g <- ggplot(df, aes(x=time, y=temperature)) + 
-            geom_line(aes(alpha=0.02)) +
-            #geom_point(aes(alpha=0.02)) +
-            theme_bw() + 
-            ggtitle(sprintf("Hourly Temperature between %s and %s", input$startDate, input$endDate)) + 
-            xlab('Date') + 
-            ylab('Temperature in F') +
-            theme(legend.position="none")
-
-        print(g)
+        startDate <- input$dateRange[1]
+        endDate <- input$dateRange[2]
+        if (input$apiKey != '') {
+            latitude <- 40.7127
+            longitude <- -74.0059
+            df <- getForecastIoWeatherPlotData(input$apiKey, startDate, endDate, latitude, longitude, 'America/New_York')
+            g <- ggplot(df, aes(x=time, y=temperature)) + 
+                geom_line(aes(alpha=0.02)) +
+                #geom_point(aes(alpha=0.02)) +
+                theme_bw() + 
+                ggtitle(sprintf("Hourly Temperature between %s and %s", startDate, endDate)) + 
+                xlab('Date') + 
+                ylab('Temperature in F') +
+                theme(legend.position="none")
+            
+            print(g)
+        }
       })
 })
