@@ -1,13 +1,8 @@
-# Todos
-#  make datatable work
-#  Convert to dyGraphs or metricsgraphics
-
 library(shiny)
 library(Rforecastio)
 library(dplyr)
 library(ggplot2)
 library(scales)
-library(reshape2)
 
 getStoredWeatherPlotData <- function(weatherData, startDate, endDate, timezone) {
     startTime <- as.POSIXlt(as.Date(startDate), tz=timezone)
@@ -50,39 +45,25 @@ getForecastIoWeatherPlotData <- function(apiKey, startDate, endDate, lat, long, 
     result
 }
 
-
 shinyServer(function(input, output) {
-
-    # Reactive function used for not duplicating calls to Forecast.io    
-    getWeatherData <- reactive({
+    output$temperaturePlot <- renderPlot({
+        startDate <- input$dateRange[1]
+        endDate <- input$dateRange[2]
         if (input$apiKey != '') {
             latitude <- 40.7127
             longitude <- -74.0059
-            startDate <- input$dateRange[1]
-            endDate <- input$dateRange[2]
             df <- getForecastIoWeatherPlotData(input$apiKey, startDate, endDate, latitude, longitude, 'America/New_York')
-        } else {
-            df <- data.frame()
-        }
-        print(sprintf('------------- %d', nrow(df)))
-        df %>% select(time, temperature)
-    }) 
-    
-    
-    output$temperaturePlot <- renderPlot({
-        if (input$apiKey != '') {
-            startDate <- input$dateRange[1]
-            endDate <- input$dateRange[2]
-            g <- ggplot(getWeatherData(), aes(x=time, y=temperature)) + 
+            g <- ggplot(df, aes(x=time, y=temperature)) + 
                 geom_line(aes(alpha=0.02)) +
+                #geom_point(aes(alpha=0.02)) +
                 theme_bw() + 
                 ggtitle(sprintf("Hourly Temperature between %s and %s", startDate, endDate)) + 
                 xlab('Date') + 
                 ylab('Temperature in F') +
                 theme(legend.position="none")
+            
             print(g)
         }
     })
-    
-    output$weatherData <- renderDataTable(getWeatherData(), options=list(searching = FALSE, paging = FALSE))
 })
+      
