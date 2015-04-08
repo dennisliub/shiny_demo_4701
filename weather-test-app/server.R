@@ -1,6 +1,6 @@
 # Todos
 #  make datatable work
-#  Convert to dyGraphs or metricsgraphics
+#  Convert to dyGraphs or metricsgraphic
 
 library(shiny)
 library(Rforecastio)
@@ -8,6 +8,7 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 library(reshape2)
+
 
 getStoredWeatherPlotData <- function(weatherData, startDate, endDate, timezone) {
     startTime <- as.POSIXlt(as.Date(startDate), tz=timezone)
@@ -33,6 +34,7 @@ getForecastIoWeatherPlotData <- function(apiKey, startDate, endDate, lat, long, 
     n <- as.numeric(endDate - qDate)
     result <- data.frame()
     withProgress(message = 'Getting data', value = 0, {
+      
         while (qDate < endDate) {
             incProgress(1/n, detail = paste("Getting data for ", qDate))
             d <- getForecastIoData(apiKey, lat, long, qDate, timezone)
@@ -61,11 +63,11 @@ shinyServer(function(input, output) {
             startDate <- input$dateRange[1]
             endDate <- input$dateRange[2]
             df <- getForecastIoWeatherPlotData(input$apiKey, startDate, endDate, latitude, longitude, 'America/New_York')
+            df <- df %>% select(time, temperature)
         } else {
             df <- data.frame()
         }
-        print(sprintf('------------- %d', nrow(df)))
-        df %>% select(time, temperature)
+        df
     }) 
     
     
@@ -73,7 +75,11 @@ shinyServer(function(input, output) {
         if (input$apiKey != '') {
             startDate <- input$dateRange[1]
             endDate <- input$dateRange[2]
-            g <- ggplot(getWeatherData(), aes(x=time, y=temperature)) + 
+            df <- getWeatherData()
+            if (nrow(df) > 0) {
+                message("Wrong!")
+            }
+            g <- ggplot(df, aes(x=time, y=temperature)) + 
                 geom_line(aes(alpha=0.02)) +
                 theme_bw() + 
                 ggtitle(sprintf("Hourly Temperature between %s and %s", startDate, endDate)) + 
@@ -84,5 +90,11 @@ shinyServer(function(input, output) {
         }
     })
     
-    output$weatherData <- renderDataTable(getWeatherData(), options=list(searching = FALSE, paging = FALSE))
+    output$mychart <- renderLineChart({
+      if (input$apiKey != '') {
+          # Return a data frame. Each column will be a series in the line chart.
+        df <- getWeatherData()
+        data.frame(Temperature = df$temperature)
+      }
+    })
 })

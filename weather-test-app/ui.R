@@ -11,7 +11,7 @@ shinyUI(fluidPage(
     ),
     mainPanel(
       plotOutput("temperaturePlot"),
-      dataTableOutput('weatherData')
+      lineChartOutput("mychart")
     )
   )
 ))
